@@ -80,7 +80,7 @@ export struct AboutPage {
 
   build() {
     NavDestination() {
-      Stack() {
+      Flex() {
         // Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-references/arkts-arclist-N
         ArcList({ header: new ComponentContent(this.getUIContext(), wrapBuilder(aboutHeader)) }) {
           // App name
@@ -148,8 +148,6 @@ export struct AboutPage {
             .margin({ top: 4, bottom: 4, left: 10, right: 10 })
           }
         }
-        .width(AppConstants.WATCH_SIZE)
-        .height(AppConstants.WATCH_SIZE)
       }
       .width(AppConstants.WATCH_SIZE)
       .height(AppConstants.WATCH_SIZE)

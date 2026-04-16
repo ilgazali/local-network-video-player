@@ -103,6 +103,7 @@ export struct HistoryPage {
           EmptyState({ message: 'No history yet', icon: '📽' })
         } else {
           // Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-references/arkts-arclist-N
+          Flex() {
           ArcList({ header: new ComponentContent(this.getUIContext(), wrapBuilder(historyHeader)) }) {
             ForEach(this.historyItems, (item: VideoItem) => {
               ArcListItem() {
@@ -165,6 +166,7 @@ export struct HistoryPage {
                 })
               }
             })
+          }
           }
           .width(AppConstants.WATCH_SIZE)
           .height(AppConstants.WATCH_SIZE)

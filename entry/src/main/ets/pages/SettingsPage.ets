@@ -167,7 +167,7 @@ export struct SettingsPage {
 
   build() {
     NavDestination() {
-      Stack() {
+      Flex() {
         // Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-references/arkts-arclist-N
         ArcList({ header: new ComponentContent(this.getUIContext(), wrapBuilder(settingsHeader)) }) {
           // Auto-play toggle
@@ -225,8 +225,6 @@ export struct SettingsPage {
             })
           }
         }
-        .width(AppConstants.WATCH_SIZE)
-        .height(AppConstants.WATCH_SIZE)
       }
       .width(AppConstants.WATCH_SIZE)
       .height(AppConstants.WATCH_SIZE)

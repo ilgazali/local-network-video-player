@@ -14,6 +14,11 @@ import { Logger } from '../common/utils/Logger';
 
 const MODULE: string = 'VideoPlayerComponent';
 
+/** Crown rotation event shape — DigitalCrownEvent is not exported by the SDK */
+interface CrownEvent {
+  angularVelocity: number;
+}
+
 /**
  * XComponent-based video player component with integrated playback controls.
  * Renders video via AVPlayer surfaceId, shows buffering overlay, error retry,
@@ -317,7 +322,7 @@ export default struct VideoPlayer {
     })
     // Crown event for volume control (F7)
     // Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-references/arkts-common-events-crown-event
-    .onDigitalCrown((event: DigitalCrownEvent) => {
+    .onDigitalCrown((event: CrownEvent) => {
       if (event.angularVelocity > 0) {
         this.playerService.adjustVolume(PlayerConstants.VOLUME_STEP);
       } else if (event.angularVelocity < 0) {

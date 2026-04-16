@@ -3,9 +3,6 @@
 // F2: XComponent-based player  F13: Local file picker/rawfile browser
 
 import { ArcList, ArcListItem, ComponentContent } from '@kit.ArkUI';
-import { fileIo } from '@kit.CoreFileKit';
-import { picker } from '@kit.CoreFileKit';
-import { BusinessError } from '@kit.BasicServicesKit';
 import { AVPlayerService } from '../services/AVPlayerService';
 import { VideoHistoryService } from '../services/VideoHistoryService';
 import { BackgroundUtil } from '../common/utils/BackgroundUtil';
@@ -15,7 +12,6 @@ import VideoPlayerComponent from '../view/VideoPlayer';
 import { MiniControlBar } from '../view/MiniControlBar';
 import { BrightnessGesture } from '../view/BrightnessGesture';
 import { VolumeGesture } from '../view/VolumeGesture';
-import { EmptyState } from '../view/EmptyState';
 import { DisplayUtil } from '../common/utils/DisplayUtil';
 import { AppConstants } from '../common/constants/AppConstants';
 import { Logger } from '../common/utils/Logger';
@@ -55,6 +51,7 @@ export struct LocalVideoPlayer {
   @State private playerState: PlaybackState = PlaybackState.IDLE;
   @State private currentSource: VideoSource | null = null;
   @State private currentTitle: string = '';
+  @State private pickerUnsupportedVisible: boolean = false;
 
   private playerService: AVPlayerService = AVPlayerService.getInstance();
   private historyService: VideoHistoryService = VideoHistoryService.getInstance();
@@ -127,34 +124,18 @@ export struct LocalVideoPlayer {
   }
 
   /**
-   * Open the system file picker to select a local video file.
-   * Falls back to rawfile browser on Watch (picker may not be supported).
-   * Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/picker-file-selector
+   * File picker is not available on wearable devices.
+   * SystemCapability.FileManagement.UserFileService is not included
+   * in the default wearable system capabilities.
+   * Rawfile browser above is the primary local file source on Watch 5.
+   * Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/syscap
    */
-  private async openFilePicker(): Promise<void> {
-    try {
-      const videoPicker = new picker.VideoViewPicker();
-      const result = await videoPicker.select({ maxSelectNumber: 1 });
-      if (result.length === 0) {
-        return;
-      }
-      const uri = result[0];
-      const file = fileIo.openSync(uri, fileIo.OpenMode.READ_ONLY);
-      const stat = fileIo.statSync(file.fd);
-      const source: VideoSource = {
-        type: 'fd',
-        fd: file.fd,
-        offset: 0,
-        length: stat.size
-      };
-      this.currentSource = source;
-      this.currentTitle = uri.split('/').pop() ?? 'Video';
-      await this.playerService.load(source);
-      Logger.i(MODULE, 'Loaded file picker result: %{public}s', uri);
-    } catch (err) {
-      const error = err as BusinessError;
-      Logger.e(MODULE, 'File picker failed (watch may not support): %{public}s', error.message);
-    }
+  private showPickerUnsupported(): void {
+    Logger.w(MODULE, 'File picker not supported on wearable — use rawfile browser');
+    this.pickerUnsupportedVisible = true;
+    setTimeout(() => {
+      this.pickerUnsupportedVisible = false;
+    }, 2500);
   }
 
   build() {
@@ -216,15 +197,15 @@ export struct LocalVideoPlayer {
                 }
               })
 
-              // File picker button (F13)
+              // Browse Files — not available on wearable (no UserFileService capability)
               ArcListItem() {
                 Row({ space: 10 }) {
                   Image($r('app.media.search'))
-                    .fillColor('#556B2F')
+                    .fillColor(this.pickerUnsupportedVisible ? '#CC3333' : '#A0A0A0')
                     .width(24)
                     .height(24)
-                  Text('Browse Files')
-                    .fontColor('#556B2F')
+                  Text(this.pickerUnsupportedVisible ? 'Not on Watch' : 'Browse Files')
+                    .fontColor(this.pickerUnsupportedVisible ? '#CC3333' : '#A0A0A0')
                     .fontSize(13)
                     .fontWeight(FontWeight.Medium)
                 }
@@ -233,8 +214,9 @@ export struct LocalVideoPlayer {
                 .borderRadius(24)
                 .padding({ top: 10, bottom: 10, left: 14, right: 14 })
                 .margin({ top: 4, bottom: 4, left: 10, right: 10 })
+                .opacity(0.6)
                 .onClick(() => {
-                  this.openFilePicker();
+                  this.showPickerUnsupported();
                 })
               }
             }

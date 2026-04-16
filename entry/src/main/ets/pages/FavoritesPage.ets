@@ -78,6 +78,7 @@ export struct FavoritesPage {
           EmptyState({ message: 'No favorites yet', icon: '♡' })
         } else {
           // Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-references/arkts-arclist-N
+          Flex() {
           ArcList({ header: new ComponentContent(this.getUIContext(), wrapBuilder(favoritesHeader)) }) {
             ForEach(this.favoriteItems, (item: VideoItem) => {
               ArcListItem() {
@@ -123,6 +124,7 @@ export struct FavoritesPage {
                 })
               }
             })
+          }
           }
           .width(AppConstants.WATCH_SIZE)
           .height(AppConstants.WATCH_SIZE)
