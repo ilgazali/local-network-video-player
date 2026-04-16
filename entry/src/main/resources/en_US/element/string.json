@@ -1,8 +1,5 @@
 {
   "string": [
-    { "name": "module_desc", "value": "Local Network Video Player for Huawei Watch 5" },
-    { "name": "EntryAbility_desc", "value": "Local Network Video Player" },
-    { "name": "EntryAbility_label", "value": "Video Player" },
     { "name": "app_name", "value": "Video Player" },
     { "name": "play", "value": "Play" },
     { "name": "pause", "value": "Pause" },

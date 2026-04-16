@@ -1,44 +1,93 @@
+// Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/uiability-lifecycle
+// Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/data-persistence-by-preferences
+
 import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
-import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
+import { PreferencesUtil } from '../common/utils/PreferencesUtil';
+import { VideoHistoryService } from '../services/VideoHistoryService';
+import { AVPlayerService } from '../services/AVPlayerService';
+import { AVSessionService } from '../services/AVSessionService';
+import { Logger } from '../common/utils/Logger';
 
-const DOMAIN = 0x0000;
+const MODULE: string = 'EntryAbility';
 
+/**
+ * Main application lifecycle ability.
+ * Initializes PreferencesUtil, VideoHistoryService, AVPlayerService, and AVSessionService
+ * on startup, and properly releases resources on destroy.
+ *
+ * Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/uiability-lifecycle
+ */
 export default class EntryAbility extends UIAbility {
-  onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
+
+  /**
+   * Called when the ability is created.
+   * Initializes all singleton services.
+   * Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/uiability-lifecycle
+   */
+  async onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): Promise<void> {
     this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
-    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
+    Logger.i(MODULE, 'Ability onCreate');
+
+    // F3: Initialize Preferences persistent store
+    await PreferencesUtil.init(this.context);
+    Logger.i(MODULE, 'PreferencesUtil initialized');
+
+    // F4: Load history/favorites from Preferences
+    await VideoHistoryService.getInstance().loadFromPreferences();
+    Logger.i(MODULE, 'VideoHistoryService loaded');
+
+    // F1: Initialize AVPlayer singleton with context
+    await AVPlayerService.getInstance().init(this.context);
+    Logger.i(MODULE, 'AVPlayerService initialized');
+
+    // F8: Create AVSession for lock-screen controls
+    await AVSessionService.getInstance().create(this.context);
+    Logger.i(MODULE, 'AVSessionService created');
   }
 
-  onDestroy(): void {
-    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onDestroy');
+  /**
+   * Called when the ability is destroyed.
+   * Releases AVPlayer and AVSession resources.
+   * Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/uiability-lifecycle
+   */
+  async onDestroy(): Promise<void> {
+    Logger.i(MODULE, 'Ability onDestroy');
+
+    // F8: Destroy AVSession
+    await AVSessionService.getInstance().destroy();
+
+    // F1: Release AVPlayer singleton
+    await AVPlayerService.getInstance().release();
+
+    Logger.i(MODULE, 'All services released');
   }
 
+  /**
+   * Called when the main window stage is created.
+   * Loads the main page (pages/Index).
+   */
   onWindowStageCreate(windowStage: window.WindowStage): void {
-    // Main window is created, set main page for this ability
-    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onWindowStageCreate');
+    Logger.i(MODULE, 'onWindowStageCreate');
 
     windowStage.loadContent('pages/Index', (err) => {
       if (err.code) {
-        hilog.error(DOMAIN, 'testTag', 'Failed to load the content. Cause: %{public}s', JSON.stringify(err));
+        Logger.e(MODULE, 'Failed to load content: %{public}s', JSON.stringify(err));
         return;
       }
-      hilog.info(DOMAIN, 'testTag', 'Succeeded in loading the content.');
+      Logger.i(MODULE, 'Content loaded successfully');
     });
   }
 
   onWindowStageDestroy(): void {
-    // Main window is destroyed, release UI related resources
-    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onWindowStageDestroy');
+    Logger.i(MODULE, 'onWindowStageDestroy');
   }
 
   onForeground(): void {
-    // Ability has brought to foreground
-    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onForeground');
+    Logger.i(MODULE, 'onForeground');
   }
 
   onBackground(): void {
-    // Ability has back to background
-    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onBackground');
+    Logger.i(MODULE, 'onBackground');
   }
 }
