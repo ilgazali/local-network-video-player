@@ -1,5 +1,3 @@
-// Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/video-playback
-
 /**
  * Constants related to the AVPlayer and playback controls.
  */

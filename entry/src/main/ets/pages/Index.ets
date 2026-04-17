@@ -1,7 +1,3 @@
-// Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-references/arkts-arclist-N
-// Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-references/arkts-arcbutton-N
-// F4: Main menu with ArcList for wearable round display
-
 import { ArcList, ArcListItem, ComponentContent } from '@kit.ArkUI';
 import { NetworkVideoPlayer } from './NetworkVideoPlayer';
 import { LocalVideoPlayer } from './LocalVideoPlayer';

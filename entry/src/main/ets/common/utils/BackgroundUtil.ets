@@ -1,6 +1,3 @@
-// Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/continuous-task
-// F9: Background task management for continuous audio/video playback
-
 import { backgroundTaskManager } from '@kit.BackgroundTasksKit';
 import { wantAgent, WantAgent } from '@kit.AbilityKit';
 import { BusinessError } from '@kit.BasicServicesKit';

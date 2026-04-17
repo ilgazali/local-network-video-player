@@ -1,6 +1,3 @@
-// Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/data-persistence-by-preferences
-// Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-references/arkts-arclist-N
-// F16: Settings page with ArcList for wearable
 
 import { ArcList, ArcListItem, ComponentContent } from '@kit.ArkUI';
 import { SettingsViewModel } from '../viewmodel/SettingsViewModel';

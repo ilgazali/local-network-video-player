@@ -1,6 +1,3 @@
-// Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-references/arkts-gesture-events-pan-gesture
-// F6: Vertical swipe gesture for brightness control (left half of screen)
-
 import { window } from '@kit.ArkUI';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { PlayerConstants } from '../common/constants/PlayerConstants';
@@ -33,7 +30,7 @@ export struct BrightnessGesture {
    */
   private applyBrightness(value: number): void {
     try {
-      const windowStage = window.getLastWindow(getContext(this));
+      const windowStage = window.getLastWindow(this.getUIContext().getHostContext()!);
       windowStage.then((win: window.Window) => {
         const normalizedBrightness = value / PlayerConstants.BRIGHTNESS_MAX;
         win.setWindowBrightness(normalizedBrightness);

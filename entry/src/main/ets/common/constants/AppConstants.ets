@@ -1,5 +1,3 @@
-// Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/data-persistence-by-preferences
-
 /**
  * Application-wide constants for Preferences keys, limits, and defaults.
  */

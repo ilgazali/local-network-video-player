@@ -1,5 +1,3 @@
-// Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/request-user-authorization
-// Permission utility for INTERNET and other runtime permissions
 
 import { abilityAccessCtrl, bundleManager, Permissions } from '@kit.AbilityKit';
 import { BusinessError } from '@kit.BasicServicesKit';

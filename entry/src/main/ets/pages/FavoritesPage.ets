@@ -1,6 +1,3 @@
-// Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-references/arkts-arclist-N
-// F4: Favorites page with ArcList
-
 import { ArcList, ArcListItem, ComponentContent } from '@kit.ArkUI';
 import { VideoHistoryService } from '../services/VideoHistoryService';
 import { AVPlayerService } from '../services/AVPlayerService';
@@ -48,16 +45,6 @@ export struct FavoritesPage {
     this.favoriteItems = this.historyService.getFavorites();
     this.isLoading = false;
     Logger.i(MODULE, 'Favorites loaded: %{public}s items', `${this.favoriteItems.length}`);
-  }
-
-  private formatDuration(ms: number): string {
-    if (ms <= 0) {
-      return '--:--';
-    }
-    const totalSeconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
   }
 
   build() {

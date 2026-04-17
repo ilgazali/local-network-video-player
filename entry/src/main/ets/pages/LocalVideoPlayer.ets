@@ -5,7 +5,6 @@ import { BackgroundUtil } from '../common/utils/BackgroundUtil';
 import { VideoSource, VideoItem } from '../common/types/VideoItem';
 import { PlaybackState } from '../common/types/PlaybackState';
 import VideoPlayerComponent from '../view/VideoPlayer';
-import { MiniControlBar } from '../view/MiniControlBar';
 import { BrightnessGesture } from '../view/BrightnessGesture';
 import { VolumeGesture } from '../view/VolumeGesture';
 import { DisplayUtil } from '../common/utils/DisplayUtil';
@@ -43,10 +42,6 @@ function localVideosHeader() {
 @Component
 export struct LocalVideoPlayer {
   @Consume('pathStack') pathStack: NavPathStack;
-  // playerModeActive controls player vs. browse view.
-  // Driven only by playRawfile(), NOT by AVPlayer state transitions — this prevents
-  // VideoPlayer.ets from disappearing (and calling clearCallbacks()) during the IDLE
-  // state that occurs between videos when load() calls reset() internally.
   @State private playerModeActive: boolean = false;
   @State private playerState: PlaybackState = PlaybackState.IDLE;
   @State private currentSource: VideoSource | null = null;
@@ -77,8 +72,7 @@ export struct LocalVideoPlayer {
    */
   aboutToDisappear(): void {
     this.playerService.clearCallbacks();
-    const ctx = getContext(this);
-    BackgroundUtil.stopOnStopOrPause(ctx);
+    BackgroundUtil.stopOnStopOrPause(this.getUIContext().getHostContext()!);
     Logger.i(MODULE, 'LocalVideoPlayer disappeared, callbacks cleared');
   }
 
@@ -86,7 +80,7 @@ export struct LocalVideoPlayer {
     this.playerService.onStateChange((state: PlaybackState) => {
       this.playerState = state;
 
-      const ctx = getContext(this);
+      const ctx = this.getUIContext().getHostContext()!;
       if (state === PlaybackState.PLAYING) {
         BackgroundUtil.startOnPlay(ctx);
       } else if (state === PlaybackState.PAUSED || state === PlaybackState.STOPPED) {
@@ -94,24 +88,22 @@ export struct LocalVideoPlayer {
       }
     });
 
-    // Saves to history and refreshes currentVideoItem / isFavorite for every video.
+    // Updates duration in the history record once AVPlayer reports it.
     this.playerService.onDurationUpdate(async (durationMs: number) => {
-      if (this.currentSource !== null) {
-        const videoId = `local_${this.currentTitle}`;
-        const item: VideoItem = {
-          id: videoId,
-          title: this.currentTitle,
-          source: this.currentSource,
-          durationMs: durationMs,
-          lastPositionMs: 0,
-          lastPlayedAt: Date.now(),
-          isFavorite: this.historyService.isFavorite(videoId)
-        };
-        this.currentVideoItem = item;
-        this.isFavorite = item.isFavorite;
-        await this.historyService.addToHistory(item);
-        Logger.i(MODULE, 'Saved to history: %{public}s', videoId);
+      if (this.currentVideoItem !== null) {
+        this.currentVideoItem.durationMs = durationMs;
+        await this.historyService.addToHistory(this.currentVideoItem);
       }
+    });
+
+    // Fired by next()/previous() — update page state to match the new track.
+    this.playerService.onPlaylistNavigate(async (item: VideoItem) => {
+      this.currentSource = item.source;
+      this.currentTitle = item.title;
+      this.currentVideoItem = item;
+      this.isFavorite = this.historyService.isFavorite(item.id);
+      await this.historyService.addToHistory(item);
+      Logger.i(MODULE, 'Playlist navigated to: %{public}s', item.title);
     });
   }
 
@@ -126,7 +118,6 @@ export struct LocalVideoPlayer {
     const videoId = `local_${entry.title}`;
     this.currentSource = source;
     this.currentTitle = entry.title;
-    // Create item immediately so ♥ button works before onDurationUpdate fires
     this.currentVideoItem = {
       id: videoId,
       title: entry.title,
@@ -138,10 +129,28 @@ export struct LocalVideoPlayer {
     };
     this.isFavorite = this.currentVideoItem.isFavorite;
     await this.historyService.addToHistory(this.currentVideoItem);
+
+    // Build playlist from all rawVideos so next()/previous() work.
+    const playlist: VideoItem[] = this.rawVideos.map((e: RawVideoEntry) => {
+      const id = `local_${e.title}`;
+      return {
+        id: id,
+        title: e.title,
+        source: { type: 'rawfile', rawfileName: e.rawfileName } as VideoSource,
+        durationMs: 0,
+        lastPositionMs: 0,
+        lastPlayedAt: 0,
+        isFavorite: this.historyService.isFavorite(id)
+      } as VideoItem;
+    });
+    const selectedIndex = this.rawVideos.findIndex((e: RawVideoEntry) => e.rawfileName === entry.rawfileName);
+    this.playerService.setPlaylist(playlist, selectedIndex);
+
     // Activate player view before load so VideoPlayer.ets mounts once and stays mounted.
     this.playerModeActive = true;
     await this.playerService.load(source);
-    Logger.i(MODULE, 'Playing rawfile: %{public}s', entry.rawfileName);
+    Logger.i(MODULE, 'Playing rawfile: %{public}s (index %{public}s/%{public}s)',
+      entry.rawfileName, `${selectedIndex}`, `${playlist.length}`);
   }
 
   build() {
@@ -156,7 +165,6 @@ export struct LocalVideoPlayer {
                 videoTitle: this.currentTitle
               })
 
-              // Brightness/Volume gesture overlays — left/right halves (F6)
               Row() {
                 BrightnessGesture()
                 VolumeGesture()
@@ -172,7 +180,7 @@ export struct LocalVideoPlayer {
                 .backgroundColor('rgba(0, 0, 0, 0.5)')
                 .borderRadius(14)
                 .padding({ left: 6, right: 6, top: 3, bottom: 3 })
-                .position({ x: '73%', y: '5%' })
+                .position({ x: '62%', y: '10%' })
                 .onClick(async () => {
                   if (this.currentVideoItem !== null) {
                     this.isFavorite = await this.historyService.toggleFavorite(this.currentVideoItem);
@@ -184,7 +192,7 @@ export struct LocalVideoPlayer {
             .width(AppConstants.WATCH_SIZE)
             .height('calc(100% - 56px)')
 
-            MiniControlBar({ playerState: this.playerState })
+
           }
           .width(AppConstants.WATCH_SIZE)
           .height(AppConstants.WATCH_SIZE)
@@ -203,9 +211,12 @@ export struct LocalVideoPlayer {
                       .height(24)
                     Text(entry.title)
                       .fontColor('#8B4513')
-                      .fontSize(13)
+                      .fontSize(15)
                       .fontWeight(FontWeight.Medium)
                       .layoutWeight(1)
+                    Blank()
+                      .width(24)
+                      .height(24)
                   }
                   .alignItems(VerticalAlign.Center)
                   .backgroundColor('#FFF8DC')

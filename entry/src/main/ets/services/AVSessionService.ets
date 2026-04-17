@@ -1,6 +1,3 @@
-// Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/avsession-access-scene
-// F8: AVSession for lock-screen playback controls
-
 import { avSession } from '@kit.AVSessionKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { common } from '@kit.AbilityKit';

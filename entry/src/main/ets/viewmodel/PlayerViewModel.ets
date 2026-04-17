@@ -1,6 +1,3 @@
-// Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/video-playback
-// Player page business logic bridging UI state to AVPlayerService
-
 import { media } from '@kit.MediaKit';
 import { AVPlayerService } from '../services/AVPlayerService';
 import { AVSessionService } from '../services/AVSessionService';

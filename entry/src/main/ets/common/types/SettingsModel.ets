@@ -1,5 +1,3 @@
-// Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/data-persistence-by-preferences
-
 import { LoopMode } from './PlaybackState';
 
 /**

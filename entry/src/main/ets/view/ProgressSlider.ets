@@ -1,6 +1,3 @@
-// Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/video-playback
-// F5: Circular progress slider with seek support for round wearable display
-
 import { PlayerConstants } from '../common/constants/PlayerConstants';
 import { Logger } from '../common/utils/Logger';
 

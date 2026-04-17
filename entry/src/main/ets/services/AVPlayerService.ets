@@ -1,8 +1,3 @@
-// Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/video-playback
-// F1: AVPlayer singleton with full state machine
-// F11: Playback speed control
-// F12: Loop mode + playlist management
-
 import { media } from '@kit.MediaKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { common } from '@kit.AbilityKit';
@@ -30,6 +25,9 @@ export type ErrorCallback = (code: number, message: string) => void;
 
 /** Callback type for playback complete */
 export type CompleteCallback = () => void;
+
+/** Callback type for playlist track navigation (next/previous) */
+export type PlaylistNavigateCallback = (item: VideoItem) => void;
 
 /**
  * Singleton service managing AVPlayer lifecycle with full state machine.
@@ -72,6 +70,7 @@ export class AVPlayerService {
   private bufferingCallbacks: BufferingCallback[] = [];
   private errorCallbacks: ErrorCallback[] = [];
   private completeCallbacks: CompleteCallback[] = [];
+  private playlistNavigateCallbacks: PlaylistNavigateCallback[] = [];
 
   private constructor() {
   }
@@ -552,6 +551,9 @@ export class AVPlayerService {
     const item = this.playlist[this.currentIndex];
     Logger.i(MODULE, 'Next track: index=%{public}s title=%{public}s',
       `${this.currentIndex}`, item.title);
+    for (const cb of this.playlistNavigateCallbacks) {
+      cb(item);
+    }
     await this.load(item.source);
   }
 
@@ -568,6 +570,9 @@ export class AVPlayerService {
     const item = this.playlist[this.currentIndex];
     Logger.i(MODULE, 'Previous track: index=%{public}s title=%{public}s',
       `${this.currentIndex}`, item.title);
+    for (const cb of this.playlistNavigateCallbacks) {
+      cb(item);
+    }
     await this.load(item.source);
   }
 
@@ -622,6 +627,14 @@ export class AVPlayerService {
   }
 
   /**
+   * Register a callback fired when next() or previous() navigates to a new playlist item.
+   * @param cb - Callback receiving the new VideoItem
+   */
+  onPlaylistNavigate(cb: PlaylistNavigateCallback): void {
+    this.playlistNavigateCallbacks.push(cb);
+  }
+
+  /**
    * Remove all registered callbacks. Call when page is destroyed.
    */
   clearCallbacks(): void {
@@ -631,6 +644,7 @@ export class AVPlayerService {
     this.bufferingCallbacks = [];
     this.errorCallbacks = [];
     this.completeCallbacks = [];
+    this.playlistNavigateCallbacks = [];
   }
 
   // --- Getters ---

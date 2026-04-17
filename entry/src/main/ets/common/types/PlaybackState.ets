@@ -1,5 +1,3 @@
-// Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/video-playback
-
 /**
  * Enum representing all possible AVPlayer playback states.
  * Maps directly to the HarmonyOS AVPlayer state machine.

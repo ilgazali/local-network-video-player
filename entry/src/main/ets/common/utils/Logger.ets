@@ -1,6 +1,3 @@
-// Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/hilog-guidelines
-// F18: hilog wrapper with structured logging
-
 import { hilog } from '@kit.PerformanceAnalysisKit';
 
 /**

@@ -1,14 +1,9 @@
-// Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/video-playback
-// Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/streaming-media-playback-development-guide
-// F2: XComponent-based player  F3: Persistent last URL  F10: Buffering + retry
-
 import { AVPlayerService } from '../services/AVPlayerService';
 import { VideoHistoryService } from '../services/VideoHistoryService';
 import { BackgroundUtil } from '../common/utils/BackgroundUtil';
 import { VideoSource, VideoItem } from '../common/types/VideoItem';
 import { PlaybackState } from '../common/types/PlaybackState';
 import VideoPlayerComponent from '../view/VideoPlayer';
-import { MiniControlBar } from '../view/MiniControlBar';
 import { BrightnessGesture } from '../view/BrightnessGesture';
 import { VolumeGesture } from '../view/VolumeGesture';
 import { DisplayUtil } from '../common/utils/DisplayUtil';
@@ -41,7 +36,6 @@ export struct NetworkVideoPlayer {
 
   async aboutToAppear(): Promise<void> {
     DisplayUtil.refresh();
-    // F3: Restore last URL from Preferences
     const lastUrl = await PreferencesUtil.getString(AppConstants.KEY_LAST_URL, '');
     if (lastUrl.length > 0) {
       this.videoUrl = lastUrl;
@@ -57,8 +51,7 @@ export struct NetworkVideoPlayer {
    */
   aboutToDisappear(): void {
     this.playerService.clearCallbacks();
-    const ctx = getContext(this);
-    BackgroundUtil.stopOnStopOrPause(ctx);
+    BackgroundUtil.stopOnStopOrPause(this.getUIContext().getHostContext()!);
     Logger.i(MODULE, 'NetworkVideoPlayer disappeared');
   }
 
@@ -66,7 +59,7 @@ export struct NetworkVideoPlayer {
     this.playerService.onStateChange((state: PlaybackState) => {
       this.playerState = state;
 
-      const ctx = getContext(this);
+      const ctx = this.getUIContext().getHostContext()!;
       if (state === PlaybackState.PLAYING) {
         BackgroundUtil.startOnPlay(ctx);
       } else if (state === PlaybackState.PAUSED || state === PlaybackState.STOPPED) {
@@ -119,7 +112,6 @@ export struct NetworkVideoPlayer {
     if (trimmedUrl.length === 0) {
       return;
     }
-    // F3: Save last URL
     await PreferencesUtil.putString(AppConstants.KEY_LAST_URL, trimmedUrl);
 
     const source: VideoSource = { type: 'url', url: trimmedUrl };
@@ -151,10 +143,10 @@ export struct NetworkVideoPlayer {
             Stack({ alignContent: Alignment.Center }) {
               VideoPlayerComponent({
                 videoSource: this.currentSource,
-                videoTitle: this.extractTitle(this.videoUrl)
+                videoTitle: this.extractTitle(this.videoUrl),
+                isStreaming: true
               })
 
-              // Gesture overlays (F6)
               Row() {
                 BrightnessGesture()
                 VolumeGesture()
@@ -170,7 +162,7 @@ export struct NetworkVideoPlayer {
                 .backgroundColor('rgba(0, 0, 0, 0.5)')
                 .borderRadius(14)
                 .padding({ left: 6, right: 6, top: 3, bottom: 3 })
-                .position({ x: '73%', y: '5%' })
+                .position({ x: '62%', y: '10%' })
                 .onClick(async () => {
                   if (this.currentVideoItem !== null) {
                     this.isFavorite = await this.historyService.toggleFavorite(this.currentVideoItem);
@@ -182,7 +174,6 @@ export struct NetworkVideoPlayer {
             .width(AppConstants.WATCH_SIZE)
             .height('calc(100% - 56px)')
 
-            MiniControlBar({ playerState: this.playerState })
           }
           .width(AppConstants.WATCH_SIZE)
           .height(AppConstants.WATCH_SIZE)

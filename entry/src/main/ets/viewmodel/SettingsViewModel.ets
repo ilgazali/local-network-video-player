@@ -1,6 +1,3 @@
-// Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/data-persistence-by-preferences
-// Settings page business logic
-
 import { SettingsModel, SpeedValue, AppLanguage, getDefaultSettings } from '../common/types/SettingsModel';
 import { LoopMode } from '../common/types/PlaybackState';
 import { AppConstants } from '../common/constants/AppConstants';

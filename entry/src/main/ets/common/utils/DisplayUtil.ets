@@ -1,6 +1,3 @@
-// Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-references/js-apis-display
-// F15: Responsive display utilities for round wearable screen
-
 import { display } from '@kit.ArkUI';
 import { Logger } from './Logger';
 import { AppConstants } from '../constants/AppConstants';

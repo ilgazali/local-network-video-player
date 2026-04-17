@@ -1,7 +1,3 @@
-// Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-references/arkts-arclist-N
-// Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/data-persistence-by-preferences
-// F4: Playback history page with ArcList
-
 import { ArcList, ArcListItem, ComponentContent } from '@kit.ArkUI';
 import { VideoHistoryService } from '../services/VideoHistoryService';
 import { AVPlayerService } from '../services/AVPlayerService';
@@ -115,22 +111,24 @@ export struct HistoryPage {
                       .fontWeight(FontWeight.Medium)
                       .maxLines(1)
                       .textOverflow({ overflow: TextOverflow.Ellipsis })
-                      .width('100%')
+                      .width('80%')
+                      .textAlign(TextAlign.Start)
 
                     Row({ space: 6 }) {
                       Text(this.formatTime(item.lastPlayedAt))
                         .fontSize(10)
                         .fontColor('#A0522D')
                     }
-                    .width('100%')
+                    .justifyContent(FlexAlign.Start)
+                    .width('80%')
                   }
                   .layoutWeight(1)
 
-                  if (item.isFavorite) {
-                    Text('♥')
+                    Text(item.isFavorite?'♥' : '♡')
                       .fontSize(14)
                       .fontColor('#CC3333')
-                  }
+
+
                 }
                 .alignItems(VerticalAlign.Center)
                 .backgroundColor('#FFF8DC')

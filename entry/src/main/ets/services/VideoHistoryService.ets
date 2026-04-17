@@ -1,6 +1,3 @@
-// Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/data-persistence-by-preferences
-// F4: Video history and favorites management with Preferences persistence
-
 import { VideoItem, serializeVideoItems, deserializeVideoItems } from '../common/types/VideoItem';
 import { AppConstants } from '../common/constants/AppConstants';
 import { PreferencesUtil } from '../common/utils/PreferencesUtil';

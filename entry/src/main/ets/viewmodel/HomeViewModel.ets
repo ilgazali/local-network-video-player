@@ -1,5 +1,3 @@
-// Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/arkui
-// Home page business logic and menu item model
 
 import { Logger } from '../common/utils/Logger';
 

@@ -29,6 +29,8 @@ export default struct VideoPlayer {
   @Prop videoSource: VideoSource | null = null;
   /** Title of the video for display */
   @Prop videoTitle: string = 'Video';
+  /** When true, hides prev/next and shows a stop button instead (streaming mode) */
+  @Prop isStreaming: boolean = false;
 
   @State private playerState: PlaybackState = PlaybackState.IDLE;
   @State private isBuffering: boolean = false;
@@ -174,7 +176,6 @@ export default struct VideoPlayer {
         .height('100%')
         .borderRadius(35)
 
-      // Buffering overlay (F10)
       if (this.isBuffering) {
         Column() {
           LoadingProgress()
@@ -193,7 +194,6 @@ export default struct VideoPlayer {
         .borderRadius(35)
       }
 
-      // Error overlay with retry (F10)
       // Error 5400106 = unsupported codec — retrying is pointless, show codec hint instead.
       if (this.hasError) {
         Column() {
@@ -244,7 +244,7 @@ export default struct VideoPlayer {
         .borderRadius(35)
       }
 
-      // Playback controls overlay
+    //  Playback controls overlay
       if (this.showControls && !this.hasError && !this.isBuffering) {
         Column() {
           // Time display
@@ -253,15 +253,19 @@ export default struct VideoPlayer {
             .fontSize(11)
             .margin({ bottom: 8 })
 
-          // Play/Pause button
+          // Buttons row — playlist mode: ⏮ ▶/⏸ ⏭ | streaming mode: ⏹ ▶/⏸
           Row({ space: 24 }) {
-            // Previous
-            Text('⏮')
-              .fontSize(22)
-              .fontColor('#FFF8DC')
-              .onClick(() => {
-                this.playerService.previous();
-              })
+            if (this.isStreaming) {
+
+            } else {
+              // Previous
+              Text('⏮')
+                .fontSize(22)
+                .fontColor('#FFF8DC')
+                .onClick(() => {
+                  this.playerService.previous();
+                })
+            }
 
             // Play/Pause toggle
             Text(this.playerState === PlaybackState.PLAYING ? '⏸' : '▶')
@@ -271,44 +275,27 @@ export default struct VideoPlayer {
                 this.playerService.togglePlayPause();
               })
 
-            // Next
-            Text('⏭')
-              .fontSize(22)
-              .fontColor('#FFF8DC')
-              .onClick(() => {
-                this.playerService.next();
-              })
+            if (!this.isStreaming) {
+              // Next
+              Text('⏭')
+                .fontSize(22)
+                .fontColor('#FFF8DC')
+                .onClick(() => {
+                  this.playerService.next();
+                })
+            }
           }
           .justifyContent(FlexAlign.Center)
 
-          // Progress bar
-          Row() {
-            Progress({
-              value: this.durationMs > 0
-                ? Math.round((this.currentTimeMs / this.durationMs) * 100)
-                : 0,
-              total: 100,
-              type: ProgressType.Linear
-            })
-              .width('80%')
-              .height(4)
-              .color('#FFF8DC')
-              .backgroundColor('rgba(255, 248, 220, 0.3)')
-              .borderRadius(2)
-          }
-          .width('100%')
-          .justifyContent(FlexAlign.Center)
-          .margin({ top: 8 })
         }
         .justifyContent(FlexAlign.End)
-        .padding({ bottom: 20 })
+        .padding({ bottom: 105 })
         .width('100%')
         .height('100%')
         .backgroundColor('rgba(0, 0, 0, 0.3)')
         .borderRadius(35)
       }
 
-      // Volume popup (F7)
       if (this.showVolumePopup) {
         Column() {
           Text(`Vol: ${Math.round(this.volume * 100)}%`)
@@ -332,7 +319,6 @@ export default struct VideoPlayer {
         this.autoHideControls();
       }
     })
-    // Crown event for volume control (F7)
     // Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-references/arkts-common-events-crown-event
     .onDigitalCrown((event: CrownEvent) => {
       if (event.angularVelocity > 0) {

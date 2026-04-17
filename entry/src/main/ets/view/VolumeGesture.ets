@@ -1,6 +1,3 @@
-// Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-references/arkts-gesture-events-pan-gesture
-// F6: Vertical swipe gesture for volume control (right half of screen)
-
 import { AVPlayerService } from '../services/AVPlayerService';
 import { PlayerConstants } from '../common/constants/PlayerConstants';
 import { Logger } from '../common/utils/Logger';

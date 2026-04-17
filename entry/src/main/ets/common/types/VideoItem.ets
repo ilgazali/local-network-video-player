@@ -1,5 +1,3 @@
-// Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/video-playback
-
 /**
  * Represents a video source type for AVPlayer loading.
  */

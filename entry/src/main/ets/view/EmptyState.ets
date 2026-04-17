@@ -1,5 +1,3 @@
-// Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/arkui
-// Empty state component for lists with no data
 
 /**
  * Reusable "no content" placeholder for empty lists (history, favorites, etc.).
