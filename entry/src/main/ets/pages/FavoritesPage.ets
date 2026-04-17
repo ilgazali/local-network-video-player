@@ -92,11 +92,6 @@ export struct FavoritesPage {
                       .textOverflow({ overflow: TextOverflow.Ellipsis })
                       .width('100%')
 
-                    if (item.durationMs > 0) {
-                      Text(this.formatDuration(item.durationMs))
-                        .fontSize(10)
-                        .fontColor('#A0522D')
-                    }
                   }
                   .layoutWeight(1)
 
@@ -113,7 +108,7 @@ export struct FavoritesPage {
                 .borderRadius(24)
                 .padding({ top: 8, bottom: 8, left: 14, right: 14 })
                 .margin({ top: 4, bottom: 4, left: 10, right: 10 })
-                .width('calc(100% - 20px)')
+                .width('calc(100% - 44px)')
                 .onClick(() => {
                   Logger.i(MODULE, 'Playing favorite: %{public}s', item.title);
                   AVPlayerService.getInstance().load(item.source);

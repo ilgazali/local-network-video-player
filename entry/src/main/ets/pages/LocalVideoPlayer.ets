@@ -1,7 +1,3 @@
-// Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/video-playback
-// Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-references/arkts-arclist-N
-// F2: XComponent-based player  F13: Local file picker/rawfile browser
-
 import { ArcList, ArcListItem, ComponentContent } from '@kit.ArkUI';
 import { AVPlayerService } from '../services/AVPlayerService';
 import { VideoHistoryService } from '../services/VideoHistoryService';
@@ -47,14 +43,19 @@ function localVideosHeader() {
 @Component
 export struct LocalVideoPlayer {
   @Consume('pathStack') pathStack: NavPathStack;
-  @State private isPlaying: boolean = false;
+  // playerModeActive controls player vs. browse view.
+  // Driven only by playRawfile(), NOT by AVPlayer state transitions — this prevents
+  // VideoPlayer.ets from disappearing (and calling clearCallbacks()) during the IDLE
+  // state that occurs between videos when load() calls reset() internally.
+  @State private playerModeActive: boolean = false;
   @State private playerState: PlaybackState = PlaybackState.IDLE;
   @State private currentSource: VideoSource | null = null;
   @State private currentTitle: string = '';
-  @State private pickerUnsupportedVisible: boolean = false;
+  @State private isFavorite: boolean = false;
 
   private playerService: AVPlayerService = AVPlayerService.getInstance();
   private historyService: VideoHistoryService = VideoHistoryService.getInstance();
+  private currentVideoItem: VideoItem | null = null;
 
   /** Bundled rawfile videos available offline */
   private rawVideos: RawVideoEntry[] = [
@@ -84,7 +85,6 @@ export struct LocalVideoPlayer {
   private registerCallbacks(): void {
     this.playerService.onStateChange((state: PlaybackState) => {
       this.playerState = state;
-      this.isPlaying = state === PlaybackState.PLAYING;
 
       const ctx = getContext(this);
       if (state === PlaybackState.PLAYING) {
@@ -94,56 +94,61 @@ export struct LocalVideoPlayer {
       }
     });
 
+    // Saves to history and refreshes currentVideoItem / isFavorite for every video.
     this.playerService.onDurationUpdate(async (durationMs: number) => {
       if (this.currentSource !== null) {
+        const videoId = `local_${this.currentTitle}`;
         const item: VideoItem = {
-          id: `local_${this.currentTitle}`,
+          id: videoId,
           title: this.currentTitle,
           source: this.currentSource,
           durationMs: durationMs,
           lastPositionMs: 0,
           lastPlayedAt: Date.now(),
-          isFavorite: false
+          isFavorite: this.historyService.isFavorite(videoId)
         };
+        this.currentVideoItem = item;
+        this.isFavorite = item.isFavorite;
         await this.historyService.addToHistory(item);
+        Logger.i(MODULE, 'Saved to history: %{public}s', videoId);
       }
     });
   }
 
   /**
    * Load and play a rawfile video.
+   * Sets playerModeActive to keep VideoPlayer.ets mounted across all subsequent
+   * AVPlayer state transitions (including the IDLE reset between videos).
    * @param entry - The rawfile video entry to play
    */
   private async playRawfile(entry: RawVideoEntry): Promise<void> {
     const source: VideoSource = { type: 'rawfile', rawfileName: entry.rawfileName };
+    const videoId = `local_${entry.title}`;
     this.currentSource = source;
     this.currentTitle = entry.title;
+    // Create item immediately so ♥ button works before onDurationUpdate fires
+    this.currentVideoItem = {
+      id: videoId,
+      title: entry.title,
+      source: source,
+      durationMs: 0,
+      lastPositionMs: 0,
+      lastPlayedAt: Date.now(),
+      isFavorite: this.historyService.isFavorite(videoId)
+    };
+    this.isFavorite = this.currentVideoItem.isFavorite;
+    await this.historyService.addToHistory(this.currentVideoItem);
+    // Activate player view before load so VideoPlayer.ets mounts once and stays mounted.
+    this.playerModeActive = true;
     await this.playerService.load(source);
-    this.isPlaying = true;
     Logger.i(MODULE, 'Playing rawfile: %{public}s', entry.rawfileName);
-  }
-
-  /**
-   * File picker is not available on wearable devices.
-   * SystemCapability.FileManagement.UserFileService is not included
-   * in the default wearable system capabilities.
-   * Rawfile browser above is the primary local file source on Watch 5.
-   * Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/syscap
-   */
-  private showPickerUnsupported(): void {
-    Logger.w(MODULE, 'File picker not supported on wearable — use rawfile browser');
-    this.pickerUnsupportedVisible = true;
-    setTimeout(() => {
-      this.pickerUnsupportedVisible = false;
-    }, 2500);
   }
 
   build() {
     NavDestination() {
       Stack({ alignContent: Alignment.Center }) {
-        if (this.isPlaying || this.playerState === PlaybackState.PREPARED ||
-            this.playerState === PlaybackState.PAUSED) {
-          // Playing state: show XComponent player
+        if (this.playerModeActive) {
+          // Player view — stays mounted for all AVPlayer state transitions
           Column() {
             Stack({ alignContent: Alignment.Center }) {
               VideoPlayerComponent({
@@ -151,7 +156,7 @@ export struct LocalVideoPlayer {
                 videoTitle: this.currentTitle
               })
 
-              // Brightness gesture — left half (F6)
+              // Brightness/Volume gesture overlays — left/right halves (F6)
               Row() {
                 BrightnessGesture()
                 VolumeGesture()
@@ -159,6 +164,22 @@ export struct LocalVideoPlayer {
               .width('100%')
               .height('100%')
               .hitTestBehavior(HitTestMode.Transparent)
+
+              // Favorites toggle — top-right corner
+              Text(this.isFavorite ? '♥' : '♡')
+                .fontSize(20)
+                .fontColor(this.isFavorite ? '#FF4444' : '#FFFFFF')
+                .backgroundColor('rgba(0, 0, 0, 0.5)')
+                .borderRadius(14)
+                .padding({ left: 6, right: 6, top: 3, bottom: 3 })
+                .position({ x: '73%', y: '5%' })
+                .onClick(async () => {
+                  if (this.currentVideoItem !== null) {
+                    this.isFavorite = await this.historyService.toggleFavorite(this.currentVideoItem);
+                    Logger.i(MODULE, 'Favorite toggled: %{public}s → %{public}s',
+                      this.currentVideoItem.title, `${this.isFavorite}`);
+                  }
+                })
             }
             .width(AppConstants.WATCH_SIZE)
             .height('calc(100% - 56px)')
@@ -197,28 +218,6 @@ export struct LocalVideoPlayer {
                 }
               })
 
-              // Browse Files — not available on wearable (no UserFileService capability)
-              ArcListItem() {
-                Row({ space: 10 }) {
-                  Image($r('app.media.search'))
-                    .fillColor(this.pickerUnsupportedVisible ? '#CC3333' : '#A0A0A0')
-                    .width(24)
-                    .height(24)
-                  Text(this.pickerUnsupportedVisible ? 'Not on Watch' : 'Browse Files')
-                    .fontColor(this.pickerUnsupportedVisible ? '#CC3333' : '#A0A0A0')
-                    .fontSize(13)
-                    .fontWeight(FontWeight.Medium)
-                }
-                .alignItems(VerticalAlign.Center)
-                .backgroundColor('#FFF8DC')
-                .borderRadius(24)
-                .padding({ top: 10, bottom: 10, left: 14, right: 14 })
-                .margin({ top: 4, bottom: 4, left: 10, right: 10 })
-                .opacity(0.6)
-                .onClick(() => {
-                  this.showPickerUnsupported();
-                })
-              }
             }
           }
           .width(AppConstants.WATCH_SIZE)

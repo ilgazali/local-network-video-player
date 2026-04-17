@@ -121,14 +121,6 @@ export struct HistoryPage {
                       Text(this.formatTime(item.lastPlayedAt))
                         .fontSize(10)
                         .fontColor('#A0522D')
-                      if (item.durationMs > 0) {
-                        Text('·')
-                          .fontSize(10)
-                          .fontColor('#A0522D')
-                        Text(this.formatDuration(item.durationMs))
-                          .fontSize(10)
-                          .fontColor('#A0522D')
-                      }
                     }
                     .width('100%')
                   }
@@ -145,7 +137,7 @@ export struct HistoryPage {
                 .borderRadius(24)
                 .padding({ top: 8, bottom: 8, left: 14, right: 14 })
                 .margin({ top: 4, bottom: 4, left: 10, right: 10 })
-                .width('calc(100% - 20px)')
+                .width('calc(100% - 44px)')
                 .onClick(() => {
                   Logger.i(MODULE, 'Resuming: %{public}s', item.title);
                   const playerService = AVPlayerService.getInstance();

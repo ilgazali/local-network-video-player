@@ -137,16 +137,20 @@ export class VideoHistoryService {
     );
 
     if (existingIndex >= 0) {
-      // Remove from favorites
-      this.favoriteItems.splice(existingIndex, 1);
+      // Remove — filter creates a new array so ArkUI @State detects the reference change
       item.isFavorite = false;
+      this.favoriteItems = this.favoriteItems.filter(
+        (fav: VideoItem) => fav.id !== item.id
+      );
       await this.saveFavorites();
       Logger.d(MODULE, 'Removed from favorites: %{public}s', item.title);
       return false;
     } else {
-      // Add to favorites
+      // Add — slice + unshift creates a new array so ArkUI @State detects the reference change
       item.isFavorite = true;
-      this.favoriteItems.unshift(item);
+      const newFavs: VideoItem[] = this.favoriteItems.slice();
+      newFavs.unshift(item);
+      this.favoriteItems = newFavs;
       await this.saveFavorites();
       Logger.d(MODULE, 'Added to favorites: %{public}s', item.title);
       return true;

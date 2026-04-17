@@ -8,7 +8,6 @@ import { LocalVideoPlayer } from './LocalVideoPlayer';
 import { HistoryPage } from './HistoryPage';
 import { FavoritesPage } from './FavoritesPage';
 import { SettingsPage } from './SettingsPage';
-import { AboutPage } from './AboutPage';
 import { DisplayUtil } from '../common/utils/DisplayUtil';
 import { AppConstants } from '../common/constants/AppConstants';
 import { Logger } from '../common/utils/Logger';
@@ -55,11 +54,10 @@ export struct VideoPlayer {
 
   private menuItems: MenuItemData[] = [
     { title: 'Local Video', icon: $r('app.media.directory'), pageName: 'LocalVideoPlayer', iconColor: '#8B4513' },
-    { title: 'Network Video', icon: $r('app.media.url'), pageName: 'NetworkVideoPlayer', iconColor: '#8B4513' },
+    { title: 'Streaming', icon: $r('app.media.url'), pageName: 'NetworkVideoPlayer', iconColor: '#8B4513' },
     { title: 'History', icon: $r('app.media.search'), pageName: 'HistoryPage', iconColor: '#6B4226' },
     { title: 'Favorites', icon: $r('app.media.file'), pageName: 'FavoritesPage', iconColor: '#CC3333' },
-    { title: 'Settings', icon: $r('app.media.search'), pageName: 'SettingsPage', iconColor: '#556B2F' },
-    { title: 'About', icon: $r('app.media.file'), pageName: 'AboutPage', iconColor: '#4682B4' }
+    { title: 'Settings', icon: $r('app.media.search'), pageName: 'SettingsPage', iconColor: '#556B2F' }
   ];
 
   aboutToAppear(): void {
@@ -79,8 +77,6 @@ export struct VideoPlayer {
       FavoritesPage()
     } else if (name === 'SettingsPage') {
       SettingsPage()
-    } else if (name === 'AboutPage') {
-      AboutPage()
     }
   }
 
@@ -100,9 +96,13 @@ export struct VideoPlayer {
 
                 Text(item.title)
                   .fontColor('#8B4513')
-                  .fontSize(14)
+                  .fontSize(18)
                   .fontWeight(FontWeight.Medium)
                   .layoutWeight(1)
+
+                Blank()
+                  .width(28)
+                  .height(28)
               }
               .alignItems(VerticalAlign.Center)
               .backgroundColor('#FFF8DC')

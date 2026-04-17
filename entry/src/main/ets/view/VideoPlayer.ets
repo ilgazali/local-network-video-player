@@ -1,9 +1,3 @@
-// Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/video-playback
-// Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-references/arkts-basic-components-xcomponent
-// F2: XComponent-based video renderer with full AVPlayerService integration
-// F7: Crown event handling for volume control
-// F10: Buffering indicator + error retry
-
 import { AVPlayerService } from '../services/AVPlayerService';
 import { PlaybackState } from '../common/types/PlaybackState';
 import { VideoSource } from '../common/types/VideoItem';
@@ -40,6 +34,7 @@ export default struct VideoPlayer {
   @State private isBuffering: boolean = false;
   @State private hasError: boolean = false;
   @State private errorMessage: string = '';
+  @State private errorCode: number = 0;
   @State private retryCount: number = 0;
   @State private currentTimeMs: number = 0;
   @State private durationMs: number = 0;
@@ -102,6 +97,7 @@ export default struct VideoPlayer {
 
     this.playerService.onError((code: number, message: string) => {
       this.hasError = true;
+      this.errorCode = code;
       this.errorMessage = `Error ${code}: ${message}`;
       Logger.e(MODULE, 'Player error: %{public}s', this.errorMessage);
     });
@@ -198,31 +194,47 @@ export default struct VideoPlayer {
       }
 
       // Error overlay with retry (F10)
+      // Error 5400106 = unsupported codec — retrying is pointless, show codec hint instead.
       if (this.hasError) {
         Column() {
-          Text(this.errorMessage.length > 0 ? this.errorMessage : 'Playback Error')
-            .fontColor('#FF6B6B')
-            .fontSize(14)
-            .textAlign(TextAlign.Center)
-            .maxLines(2)
-            .padding({ left: 16, right: 16 })
-
-          if (this.retryCount < AppConstants.MAX_RETRY_COUNT) {
-            Button('Retry')
-              .fontColor('#8B4513')
-              .backgroundColor('#FFF8DC')
-              .borderRadius(20)
-              .margin({ top: 12 })
-              .width(80)
-              .height(32)
-              .onClick(() => {
-                this.retryLoad();
-              })
-          } else {
-            Text('Max retries reached')
+          if (this.errorCode === 5400106) {
+            Text('Format Not Supported')
               .fontColor('#FF6B6B')
-              .fontSize(12)
+              .fontSize(14)
+              .fontWeight(FontWeight.Bold)
+              .textAlign(TextAlign.Center)
+              .padding({ left: 16, right: 16 })
+            Text('This device only supports\nH.264 (AVC) video.\nHEVC/H.265 is not\nsupported on Watch.')
+              .fontColor('#FFAAAA')
+              .fontSize(11)
+              .textAlign(TextAlign.Center)
               .margin({ top: 8 })
+              .padding({ left: 14, right: 14 })
+          } else {
+            Text(this.errorMessage.length > 0 ? this.errorMessage : 'Playback Error')
+              .fontColor('#FF6B6B')
+              .fontSize(13)
+              .textAlign(TextAlign.Center)
+              .maxLines(3)
+              .padding({ left: 16, right: 16 })
+
+            if (this.retryCount < AppConstants.MAX_RETRY_COUNT) {
+              Button('Retry')
+                .fontColor('#8B4513')
+                .backgroundColor('#FFF8DC')
+                .borderRadius(20)
+                .margin({ top: 12 })
+                .width(80)
+                .height(32)
+                .onClick(() => {
+                  this.retryLoad();
+                })
+            } else {
+              Text('Max retries reached')
+                .fontColor('#FF6B6B')
+                .fontSize(12)
+                .margin({ top: 8 })
+            }
           }
         }
         .justifyContent(FlexAlign.Center)

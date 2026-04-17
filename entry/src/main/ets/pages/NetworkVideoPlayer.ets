@@ -28,14 +28,16 @@ const MODULE: string = 'NetworkVideoPlayer';
 @Component
 export struct NetworkVideoPlayer {
   @Consume('pathStack') pathStack: NavPathStack;
-  @State private videoUrl: string = '';
+  @State private videoUrl: string = 'https://avtshare01.rz.tu-ilmenau.de/avt-vqdb-uhd-1/test_1/segments/bigbuck_bunny_8bit_200kbps_360p_60.0fps_h264.mp4';
   @State private showPlayer: boolean = false;
   @State private playerState: PlaybackState = PlaybackState.IDLE;
   @State private isLoading: boolean = true;
   @State private currentSource: VideoSource | null = null;
+  @State private isFavorite: boolean = false;
 
   private playerService: AVPlayerService = AVPlayerService.getInstance();
   private historyService: VideoHistoryService = VideoHistoryService.getInstance();
+  private currentVideoItem: VideoItem | null = null;
 
   async aboutToAppear(): Promise<void> {
     DisplayUtil.refresh();
@@ -74,15 +76,18 @@ export struct NetworkVideoPlayer {
 
     this.playerService.onDurationUpdate(async (durationMs: number) => {
       if (this.currentSource !== null) {
+        const videoId = `net_${this.videoUrl.trim()}`;
         const item: VideoItem = {
-          id: `net_${Date.now()}`,
+          id: videoId,
           title: this.extractTitle(this.videoUrl),
           source: this.currentSource,
           durationMs: durationMs,
           lastPositionMs: 0,
           lastPlayedAt: Date.now(),
-          isFavorite: false
+          isFavorite: this.historyService.isFavorite(videoId)
         };
+        this.currentVideoItem = item;
+        this.isFavorite = item.isFavorite;
         await this.historyService.addToHistory(item);
         Logger.d(MODULE, 'Added to history: %{public}s', item.title);
       }
@@ -119,6 +124,19 @@ export struct NetworkVideoPlayer {
 
     const source: VideoSource = { type: 'url', url: trimmedUrl };
     this.currentSource = source;
+    const videoId = `net_${trimmedUrl}`;
+    const initialItem: VideoItem = {
+      id: videoId,
+      title: this.extractTitle(trimmedUrl),
+      source: source,
+      durationMs: 0,
+      lastPositionMs: 0,
+      lastPlayedAt: Date.now(),
+      isFavorite: this.historyService.isFavorite(videoId)
+    };
+    this.currentVideoItem = initialItem;
+    this.isFavorite = initialItem.isFavorite;
+    await this.historyService.addToHistory(initialItem);
     this.showPlayer = true;
     await this.playerService.load(source);
     Logger.i(MODULE, 'Starting network stream: %{public}s', trimmedUrl);
@@ -144,6 +162,22 @@ export struct NetworkVideoPlayer {
               .width('100%')
               .height('100%')
               .hitTestBehavior(HitTestMode.Transparent)
+
+              // Favorites toggle — top-right corner overlay
+              Text(this.isFavorite ? '♥' : '♡')
+                .fontSize(20)
+                .fontColor(this.isFavorite ? '#FF4444' : '#FFFFFF')
+                .backgroundColor('rgba(0, 0, 0, 0.5)')
+                .borderRadius(14)
+                .padding({ left: 6, right: 6, top: 3, bottom: 3 })
+                .position({ x: '73%', y: '5%' })
+                .onClick(async () => {
+                  if (this.currentVideoItem !== null) {
+                    this.isFavorite = await this.historyService.toggleFavorite(this.currentVideoItem);
+                    Logger.i(MODULE, 'Favorite toggled: %{public}s → %{public}s',
+                      this.currentVideoItem.title, `${this.isFavorite}`);
+                  }
+                })
             }
             .width(AppConstants.WATCH_SIZE)
             .height('calc(100% - 56px)')

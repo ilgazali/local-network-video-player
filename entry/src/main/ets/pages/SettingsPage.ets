@@ -4,7 +4,7 @@
 
 import { ArcList, ArcListItem, ComponentContent } from '@kit.ArkUI';
 import { SettingsViewModel } from '../viewmodel/SettingsViewModel';
-import { SettingsModel, SpeedValue, AppLanguage } from '../common/types/SettingsModel';
+import { SpeedValue, AppLanguage } from '../common/types/SettingsModel';
 import { LoopMode } from '../common/types/PlaybackState';
 import { DisplayUtil } from '../common/utils/DisplayUtil';
 import { PlayerConstants } from '../common/constants/PlayerConstants';
@@ -28,7 +28,9 @@ function settingsHeader() {
 
 /**
  * Settings page rendered as a scrollable ArcList.
- * Manages auto-play, loop mode, default speed, language, and history clearing.
+ * Each setting field is a separate @State so ArkUI detects changes and re-renders.
+ * Using a single @State SettingsModel object would only track the reference, not
+ * nested property mutations — so Loop/Speed/Language taps would appear to do nothing.
  *
  * Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-references/arkts-arclist-N
  * Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/data-persistence-by-preferences
@@ -36,25 +38,26 @@ function settingsHeader() {
 @Component
 export struct SettingsPage {
   @Consume('pathStack') pathStack: NavPathStack;
-  @State private settings: SettingsModel = {
-    autoPlay: false,
-    loopMode: LoopMode.OFF,
-    defaultSpeed: SpeedValue.SPEED_1_0,
-    language: AppLanguage.EN
-  };
-  @State private showClearConfirm: boolean = false;
+  @State private autoPlay: boolean = false;
+  @State private loopMode: LoopMode = LoopMode.OFF;
+  @State private defaultSpeed: SpeedValue = SpeedValue.SPEED_1_0;
+  @State private language: AppLanguage = AppLanguage.EN;
   @State private clearSuccess: boolean = false;
 
   private viewModel: SettingsViewModel = new SettingsViewModel();
 
   async aboutToAppear(): Promise<void> {
     DisplayUtil.refresh();
-    this.settings = await this.viewModel.load();
+    const s = await this.viewModel.load();
+    this.autoPlay = s.autoPlay;
+    this.loopMode = s.loopMode;
+    this.defaultSpeed = s.defaultSpeed;
+    this.language = s.language;
     Logger.i(MODULE, 'Settings page appeared');
   }
 
   private getLoopLabel(): string {
-    switch (this.settings.loopMode) {
+    switch (this.loopMode) {
       case LoopMode.ONE:
         return 'Repeat One';
       case LoopMode.ALL:
@@ -65,11 +68,11 @@ export struct SettingsPage {
   }
 
   private getSpeedLabel(): string {
-    return PlayerConstants.SPEED_LABELS[this.settings.defaultSpeed];
+    return PlayerConstants.SPEED_LABELS[this.defaultSpeed];
   }
 
   private getLangLabel(): string {
-    switch (this.settings.language) {
+    switch (this.language) {
       case AppLanguage.TR:
         return 'Türkçe';
       case AppLanguage.ZH:
@@ -80,89 +83,38 @@ export struct SettingsPage {
   }
 
   private cycleLoopMode(): void {
-    switch (this.settings.loopMode) {
+    switch (this.loopMode) {
       case LoopMode.OFF:
-        this.settings.loopMode = LoopMode.ONE;
+        this.loopMode = LoopMode.ONE;
         break;
       case LoopMode.ONE:
-        this.settings.loopMode = LoopMode.ALL;
+        this.loopMode = LoopMode.ALL;
         break;
       case LoopMode.ALL:
-        this.settings.loopMode = LoopMode.OFF;
+        this.loopMode = LoopMode.OFF;
         break;
     }
-    this.viewModel.setLoopMode(this.settings.loopMode);
+    this.viewModel.setLoopMode(this.loopMode);
   }
 
   private cycleSpeed(): void {
-    this.settings.defaultSpeed = (this.settings.defaultSpeed + 1) % 4 as SpeedValue;
-    this.viewModel.setDefaultSpeed(this.settings.defaultSpeed);
+    this.defaultSpeed = (this.defaultSpeed + 1) % 4 as SpeedValue;
+    this.viewModel.setDefaultSpeed(this.defaultSpeed);
   }
 
   private cycleLang(): void {
-    switch (this.settings.language) {
+    switch (this.language) {
       case AppLanguage.EN:
-        this.settings.language = AppLanguage.TR;
+        this.language = AppLanguage.TR;
         break;
       case AppLanguage.TR:
-        this.settings.language = AppLanguage.ZH;
+        this.language = AppLanguage.ZH;
         break;
       case AppLanguage.ZH:
-        this.settings.language = AppLanguage.EN;
+        this.language = AppLanguage.EN;
         break;
     }
-    this.viewModel.setLanguage(this.settings.language);
-  }
-
-  @Builder
-  SettingRow(label: string, value: string, onTap: () => void) {
-    Row() {
-      Text(label)
-        .fontSize(13)
-        .fontColor('#8B4513')
-        .fontWeight(FontWeight.Medium)
-        .layoutWeight(1)
-
-      Text(value)
-        .fontSize(12)
-        .fontColor('#A0522D')
-        .backgroundColor('rgba(139,69,19,0.1)')
-        .borderRadius(10)
-        .padding({ left: 8, right: 8, top: 3, bottom: 3 })
-    }
-    .width('100%')
-    .justifyContent(FlexAlign.SpaceBetween)
-    .alignItems(VerticalAlign.Center)
-    .backgroundColor('#FFF8DC')
-    .borderRadius(24)
-    .padding({ top: 10, bottom: 10, left: 14, right: 14 })
-    .margin({ top: 4, bottom: 4, left: 10, right: 10 })
-    .onClick(onTap)
-  }
-
-  @Builder
-  ToggleRow(label: string, checked: boolean, onChange: (val: boolean) => void) {
-    Row() {
-      Text(label)
-        .fontSize(13)
-        .fontColor('#8B4513')
-        .fontWeight(FontWeight.Medium)
-        .layoutWeight(1)
-
-      Toggle({ type: ToggleType.Switch, isOn: checked })
-        .selectedColor('#8B4513')
-        .switchPointColor('#FFF8DC')
-        .onChange(onChange)
-        .width(40)
-        .height(22)
-    }
-    .width('100%')
-    .justifyContent(FlexAlign.SpaceBetween)
-    .alignItems(VerticalAlign.Center)
-    .backgroundColor('#FFF8DC')
-    .borderRadius(24)
-    .padding({ top: 10, bottom: 10, left: 14, right: 14 })
-    .margin({ top: 4, bottom: 4, left: 10, right: 10 })
+    this.viewModel.setLanguage(this.language);
   }
 
   build() {
@@ -170,31 +122,111 @@ export struct SettingsPage {
       Flex() {
         // Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-references/arkts-arclist-N
         ArcList({ header: new ComponentContent(this.getUIContext(), wrapBuilder(settingsHeader)) }) {
+
           // Auto-play toggle
           ArcListItem() {
-            this.ToggleRow('Auto-play', this.settings.autoPlay, (val: boolean) => {
-              this.settings.autoPlay = val;
-              this.viewModel.setAutoPlay(val);
-            })
+            Row() {
+              Text('Auto-play')
+                .fontSize(13)
+                .fontColor('#8B4513')
+                .fontWeight(FontWeight.Medium)
+                .layoutWeight(1)
+              Toggle({ type: ToggleType.Switch, isOn: this.autoPlay })
+                .selectedColor('#8B4513')
+                .switchPointColor('#FFF8DC')
+                .width(40)
+                .height(22)
+                .onChange((val: boolean) => {
+                  this.autoPlay = val;
+                  this.viewModel.setAutoPlay(val);
+                })
+            }
+            .width('calc(100% - 44px)')
+            .justifyContent(FlexAlign.SpaceBetween)
+            .alignItems(VerticalAlign.Center)
+            .backgroundColor('#FFF8DC')
+            .borderRadius(24)
+            .padding({ top: 10, bottom: 10, left: 14, right: 14 })
+            .margin({ top: 4, bottom: 4, left: 10, right: 10 })
           }
 
-          // Loop mode
+          // Loop mode — tap cycles OFF → ONE → ALL → OFF
           ArcListItem() {
-            this.SettingRow('Loop', this.getLoopLabel(), () => {
+            Row() {
+              Text('Loop')
+                .fontSize(13)
+                .fontColor('#8B4513')
+                .fontWeight(FontWeight.Medium)
+                .layoutWeight(1)
+              Text(this.getLoopLabel())
+                .fontSize(12)
+                .fontColor('#A0522D')
+                .backgroundColor('rgba(139,69,19,0.1)')
+                .borderRadius(10)
+                .padding({ left: 8, right: 8, top: 3, bottom: 3 })
+            }
+            .width('calc(100% - 44px)')
+            .justifyContent(FlexAlign.SpaceBetween)
+            .alignItems(VerticalAlign.Center)
+            .backgroundColor('#FFF8DC')
+            .borderRadius(24)
+            .padding({ top: 10, bottom: 10, left: 14, right: 14 })
+            .margin({ top: 4, bottom: 4, left: 10, right: 10 })
+            .onClick(() => {
               this.cycleLoopMode();
             })
           }
 
-          // Default speed
+          // Playback speed — tap cycles 0.5x → 1.0x → 1.5x → 2.0x
           ArcListItem() {
-            this.SettingRow('Speed', this.getSpeedLabel(), () => {
+            Row() {
+              Text('Speed')
+                .fontSize(13)
+                .fontColor('#8B4513')
+                .fontWeight(FontWeight.Medium)
+                .layoutWeight(1)
+              Text(this.getSpeedLabel())
+                .fontSize(12)
+                .fontColor('#A0522D')
+                .backgroundColor('rgba(139,69,19,0.1)')
+                .borderRadius(10)
+                .padding({ left: 8, right: 8, top: 3, bottom: 3 })
+            }
+            .width('calc(100% - 44px)')
+            .justifyContent(FlexAlign.SpaceBetween)
+            .alignItems(VerticalAlign.Center)
+            .backgroundColor('#FFF8DC')
+            .borderRadius(24)
+            .padding({ top: 10, bottom: 10, left: 14, right: 14 })
+            .margin({ top: 4, bottom: 4, left: 10, right: 10 })
+            .onClick(() => {
               this.cycleSpeed();
             })
           }
 
-          // Language
+          // Language — tap cycles EN → TR → ZH → EN
           ArcListItem() {
-            this.SettingRow('Language', this.getLangLabel(), () => {
+            Row() {
+              Text('Language')
+                .fontSize(13)
+                .fontColor('#8B4513')
+                .fontWeight(FontWeight.Medium)
+                .layoutWeight(1)
+              Text(this.getLangLabel())
+                .fontSize(12)
+                .fontColor('#A0522D')
+                .backgroundColor('rgba(139,69,19,0.1)')
+                .borderRadius(10)
+                .padding({ left: 8, right: 8, top: 3, bottom: 3 })
+            }
+            .width('calc(100% - 43px)')
+            .justifyContent(FlexAlign.SpaceBetween)
+            .alignItems(VerticalAlign.Center)
+            .backgroundColor('#FFF8DC')
+            .borderRadius(24)
+            .padding({ top: 10, bottom: 10, left: 14, right: 14 })
+            .margin({ top: 4, bottom: 4, left: 10, right: 10 })
+            .onClick(() => {
               this.cycleLang();
             })
           }
@@ -209,7 +241,7 @@ export struct SettingsPage {
                 .width('100%')
                 .textAlign(TextAlign.Center)
             }
-            .width('100%')
+            .width('calc(100% - 44px)')
             .justifyContent(FlexAlign.Center)
             .backgroundColor('#FFF8DC')
             .borderRadius(24)
