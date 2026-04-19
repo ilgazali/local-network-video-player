@@ -1,4 +1,7 @@
+// Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/ide-audio-interrupt-check
+// Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/ide-audio-pause-or-mute-check
 import { media } from '@kit.MediaKit';
+import { audio } from '@kit.AudioKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { common } from '@kit.AbilityKit';
 import { PlaybackState, LoopMode } from '../common/types/PlaybackState';
@@ -63,6 +66,16 @@ export class AVPlayerService {
   private playlist: VideoItem[] = [];
   private currentIndex: number = -1;
 
+  /**
+   * True if the player was paused because the system/another app took audio focus.
+   * Used to decide whether to auto-resume on INTERRUPT_HINT_RESUME.
+   * Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/ide-audio-pause-or-mute-check
+   */
+  private wasPausedByInterrupt: boolean = false;
+
+  /** Volume level remembered before a DUCK event so UNDUCK can restore it. */
+  private volumeBeforeDuck: number = -1;
+
   // Callback registries
   private stateChangeCallbacks: StateChangeCallback[] = [];
   private timeUpdateCallbacks: TimeUpdateCallback[] = [];
@@ -96,8 +109,12 @@ export class AVPlayerService {
     this.context = context;
     try {
       this.avPlayer = await media.createAVPlayer();
+      // INDEPENDENT_MODE gives the player its own audio focus so system interrupt
+      // events (incoming call, another media app, etc.) are reported via audioInterrupt.
+      // Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/ide-audio-interrupt-check
+      this.avPlayer.audioInterruptMode = audio.InterruptMode.INDEPENDENT_MODE;
       this.setupCallbacks();
-      Logger.i(MODULE, 'AVPlayer created and callbacks registered');
+      Logger.i(MODULE, 'AVPlayer created with INDEPENDENT audio focus, callbacks registered');
     } catch (err) {
       const error = err as BusinessError;
       Logger.e(MODULE, 'Failed to create AVPlayer: %{public}s', error.message);
@@ -247,6 +264,99 @@ export class AVPlayerService {
       Logger.d(MODULE, 'Volume changed to %{public}s', `${vol}`);
       this.currentVolume = vol;
     });
+
+    // Audio focus interrupt handler — incoming call, another media app taking focus, etc.
+    // Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/ide-audio-interrupt-check
+    // Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/ide-audio-pause-or-mute-check
+    player.on('audioInterrupt', (info: audio.InterruptEvent) => {
+      this.handleAudioInterrupt(info);
+    });
+  }
+
+  /**
+   * Handle an audio focus interrupt event reported by the AVPlayer.
+   *
+   * - forceType === INTERRUPT_FORCE: the system has already performed the action
+   *   (paused/stopped/ducked the stream); our job is only to reflect it in the UI so
+   *   the user sees the correct play/pause button and knows why audio stopped.
+   * - forceType === INTERRUPT_SHARE: the system is asking us to decide. For
+   *   INTERRUPT_HINT_PAUSE we pause, for INTERRUPT_HINT_RESUME we resume — but only
+   *   if we were the one paused by an earlier interrupt (wasPausedByInterrupt), to
+   *   avoid auto-resuming a user-paused track.
+   *
+   * Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/ide-audio-interrupt-check
+   * Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/ide-audio-pause-or-mute-check
+   */
+  private handleAudioInterrupt(info: audio.InterruptEvent): void {
+    Logger.i(MODULE, 'Audio interrupt: eventType=%{public}s forceType=%{public}s hintType=%{public}s',
+      `${info.eventType}`, `${info.forceType}`, `${info.hintType}`);
+
+    if (info.forceType === audio.InterruptForceType.INTERRUPT_FORCE) {
+      // System already acted — just reflect state in the UI.
+      switch (info.hintType) {
+        case audio.InterruptHint.INTERRUPT_HINT_PAUSE:
+          this.wasPausedByInterrupt = true;
+          this.currentState = PlaybackState.PAUSED;
+          this.notifyStateChange(PlaybackState.PAUSED);
+          Logger.i(MODULE, 'System forced pause (focus lost transiently)');
+          break;
+
+        case audio.InterruptHint.INTERRUPT_HINT_STOP:
+          this.wasPausedByInterrupt = false;
+          this.currentState = PlaybackState.STOPPED;
+          this.notifyStateChange(PlaybackState.STOPPED);
+          Logger.i(MODULE, 'System forced stop (focus lost permanently)');
+          break;
+
+        case audio.InterruptHint.INTERRUPT_HINT_DUCK:
+          // System reduced our volume so another stream can be heard over ours.
+          this.volumeBeforeDuck = this.currentVolume;
+          Logger.i(MODULE, 'System ducked volume from %{public}s', `${this.currentVolume}`);
+          break;
+
+        case audio.InterruptHint.INTERRUPT_HINT_UNDUCK:
+          // System restored full volume.
+          if (this.volumeBeforeDuck >= 0) {
+            Logger.i(MODULE, 'System unducked volume, restoring to %{public}s',
+              `${this.volumeBeforeDuck}`);
+            this.volumeBeforeDuck = -1;
+          }
+          break;
+
+        default:
+          break;
+      }
+    } else if (info.forceType === audio.InterruptForceType.INTERRUPT_SHARE) {
+      // App must decide how to respond.
+      switch (info.hintType) {
+        case audio.InterruptHint.INTERRUPT_HINT_PAUSE:
+          Logger.i(MODULE, 'Share-type pause request — pausing');
+          this.wasPausedByInterrupt = true;
+          this.pause();
+          break;
+
+        case audio.InterruptHint.INTERRUPT_HINT_RESUME:
+          // Only auto-resume if we were paused *by* an earlier interrupt. If the
+          // user explicitly paused, respect their choice and stay paused.
+          if (this.wasPausedByInterrupt) {
+            Logger.i(MODULE, 'Share-type resume request — resuming (focus returned)');
+            this.wasPausedByInterrupt = false;
+            this.play();
+          } else {
+            Logger.i(MODULE, 'Share-type resume request ignored — user had paused manually');
+          }
+          break;
+
+        case audio.InterruptHint.INTERRUPT_HINT_STOP:
+          Logger.i(MODULE, 'Share-type stop request — stopping');
+          this.wasPausedByInterrupt = false;
+          this.stop();
+          break;
+
+        default:
+          break;
+      }
+    }
   }
 
   /**
@@ -301,6 +411,9 @@ export class AVPlayerService {
       return;
     }
     this.currentSource = source;
+    // Interrupt state belongs to the previous source — clear it for the new one.
+    this.wasPausedByInterrupt = false;
+    this.volumeBeforeDuck = -1;
 
     // Reset if player is in an active state
     if (this.currentState !== PlaybackState.IDLE && this.currentState !== PlaybackState.RELEASED) {
@@ -399,8 +512,13 @@ export class AVPlayerService {
 
   /**
    * Toggle between play and pause states.
+   *
+   * A manual toggle is treated as a user decision, so clear wasPausedByInterrupt to
+   * prevent auto-resume from firing when focus is later returned by the system.
+   * Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/ide-audio-pause-or-mute-check
    */
   togglePlayPause(): void {
+    this.wasPausedByInterrupt = false;
     if (this.currentState === PlaybackState.PLAYING) {
       this.pause();
     } else {
@@ -500,6 +618,8 @@ export class AVPlayerService {
       await this.avPlayer.release();
       this.avPlayer = null;
       this.currentState = PlaybackState.RELEASED;
+      this.wasPausedByInterrupt = false;
+      this.volumeBeforeDuck = -1;
       this.notifyStateChange(PlaybackState.RELEASED);
       Logger.i(MODULE, 'AVPlayer released');
     } catch (err) {
@@ -517,6 +637,9 @@ export class AVPlayerService {
     }
     try {
       this.avPlayer = await media.createAVPlayer();
+      // Re-apply independent audio focus so interrupt events fire again.
+      // Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/ide-audio-interrupt-check
+      this.avPlayer.audioInterruptMode = audio.InterruptMode.INDEPENDENT_MODE;
       this.currentState = PlaybackState.IDLE;
       this.setupCallbacks();
       Logger.i(MODULE, 'AVPlayer recreated');
