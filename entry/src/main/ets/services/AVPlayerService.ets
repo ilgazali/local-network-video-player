@@ -114,7 +114,14 @@ export class AVPlayerService {
       // Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/ide-audio-interrupt-check
       // Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/ide-audio-pause-or-mute-check
       this.avPlayer.audioInterruptMode = audio.InterruptMode.INDEPENDENT_MODE;
-      this.avPlayer.on('audioInterrupt', (info: audio.InterruptEvent) => {
+      const player = this.avPlayer;
+      player.on('audioInterrupt', (info: audio.InterruptEvent) => {
+        // Explicit pause/stop response required by audio-pause-or-mute-check.
+        if (info.hintType === audio.InterruptHint.INTERRUPT_HINT_PAUSE) {
+          player.pause();
+        } else if (info.hintType === audio.InterruptHint.INTERRUPT_HINT_STOP) {
+          player.stop();
+        }
         this.handleAudioInterrupt(info);
       });
       this.setupCallbacks();
@@ -642,7 +649,14 @@ export class AVPlayerService {
       // Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/ide-audio-interrupt-check
       // Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/ide-audio-pause-or-mute-check
       this.avPlayer.audioInterruptMode = audio.InterruptMode.INDEPENDENT_MODE;
-      this.avPlayer.on('audioInterrupt', (info: audio.InterruptEvent) => {
+      const player = this.avPlayer;
+      player.on('audioInterrupt', (info: audio.InterruptEvent) => {
+        // Explicit pause/stop response required by audio-pause-or-mute-check.
+        if (info.hintType === audio.InterruptHint.INTERRUPT_HINT_PAUSE) {
+          player.pause();
+        } else if (info.hintType === audio.InterruptHint.INTERRUPT_HINT_STOP) {
+          player.stop();
+        }
         this.handleAudioInterrupt(info);
       });
       this.currentState = PlaybackState.IDLE;
