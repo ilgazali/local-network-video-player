@@ -109,10 +109,14 @@ export class AVPlayerService {
     this.context = context;
     try {
       this.avPlayer = await media.createAVPlayer();
-      // INDEPENDENT_MODE gives the player its own audio focus so system interrupt
-      // events (incoming call, another media app, etc.) are reported via audioInterrupt.
+      // Audio focus setup — must be wired inline with createAVPlayer so the IDE
+      // audio-interrupt-check / audio-pause-or-mute-check lints can see the pattern.
       // Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/ide-audio-interrupt-check
+      // Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/ide-audio-pause-or-mute-check
       this.avPlayer.audioInterruptMode = audio.InterruptMode.INDEPENDENT_MODE;
+      this.avPlayer.on('audioInterrupt', (info: audio.InterruptEvent) => {
+        this.handleAudioInterrupt(info);
+      });
       this.setupCallbacks();
       Logger.i(MODULE, 'AVPlayer created with INDEPENDENT audio focus, callbacks registered');
     } catch (err) {
@@ -264,13 +268,9 @@ export class AVPlayerService {
       Logger.d(MODULE, 'Volume changed to %{public}s', `${vol}`);
       this.currentVolume = vol;
     });
-
-    // Audio focus interrupt handler — incoming call, another media app taking focus, etc.
-    // Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/ide-audio-interrupt-check
-    // Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/ide-audio-pause-or-mute-check
-    player.on('audioInterrupt', (info: audio.InterruptEvent) => {
-      this.handleAudioInterrupt(info);
-    });
+    // NOTE: audioInterrupt handler is registered inline in init() / recreate()
+    // next to createAVPlayer() so the IDE lint rules (audio-interrupt-check and
+    // audio-pause-or-mute-check) can see the pattern at the creation site.
   }
 
   /**
@@ -637,9 +637,14 @@ export class AVPlayerService {
     }
     try {
       this.avPlayer = await media.createAVPlayer();
-      // Re-apply independent audio focus so interrupt events fire again.
+      // Audio focus setup — must be wired inline with createAVPlayer so the IDE
+      // audio-interrupt-check / audio-pause-or-mute-check lints can see the pattern.
       // Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/ide-audio-interrupt-check
+      // Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/ide-audio-pause-or-mute-check
       this.avPlayer.audioInterruptMode = audio.InterruptMode.INDEPENDENT_MODE;
+      this.avPlayer.on('audioInterrupt', (info: audio.InterruptEvent) => {
+        this.handleAudioInterrupt(info);
+      });
       this.currentState = PlaybackState.IDLE;
       this.setupCallbacks();
       Logger.i(MODULE, 'AVPlayer recreated');
