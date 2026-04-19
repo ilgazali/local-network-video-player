@@ -76,6 +76,15 @@ export class AVPlayerService {
   /** Volume level remembered before a DUCK event so UNDUCK can restore it. */
   private volumeBeforeDuck: number = -1;
 
+  /**
+   * Audio routing manager — holds the 'deviceChange' listener registration so we can
+   * unregister it in release(). Paired with audio-pause-or-mute-check: when an output
+   * device (headphones / bluetooth) disconnects, we pause so sound doesn't jump to
+   * the loud-speaker.
+   * Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/ide-audio-pause-or-mute-check
+   */
+  private routingManager: audio.AudioRoutingManager | null = null;
+
   // Callback registries
   private stateChangeCallbacks: StateChangeCallback[] = [];
   private timeUpdateCallbacks: TimeUpdateCallback[] = [];
@@ -124,6 +133,20 @@ export class AVPlayerService {
         }
         this.handleAudioInterrupt(info);
       });
+      // Auto-pause when audio routes away from headphones/bluetooth to the speaker —
+      // this is the exact case the audio-pause-or-mute-check lint rule demands.
+      // Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/ide-audio-pause-or-mute-check
+      this.routingManager = audio.getAudioManager().getRoutingManager();
+      this.routingManager.on('deviceChange', audio.DeviceFlag.OUTPUT_DEVICES_FLAG,
+        (action: audio.DeviceChangeAction) => {
+          if (action.type === audio.DeviceChangeType.DISCONNECT) {
+            Logger.i(MODULE, 'Output device disconnected — auto-pausing playback');
+            player.pause();
+            this.wasPausedByInterrupt = true;
+            this.currentState = PlaybackState.PAUSED;
+            this.notifyStateChange(PlaybackState.PAUSED);
+          }
+        });
       this.setupCallbacks();
       Logger.i(MODULE, 'AVPlayer created with INDEPENDENT audio focus, callbacks registered');
     } catch (err) {
@@ -622,6 +645,12 @@ export class AVPlayerService {
       return;
     }
     try {
+      // Unregister the output device listener so it doesn't leak across sessions.
+      // Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/ide-audio-pause-or-mute-check
+      if (this.routingManager !== null) {
+        this.routingManager.off('deviceChange');
+        this.routingManager = null;
+      }
       await this.avPlayer.release();
       this.avPlayer = null;
       this.currentState = PlaybackState.RELEASED;
@@ -659,6 +688,20 @@ export class AVPlayerService {
         }
         this.handleAudioInterrupt(info);
       });
+      // Auto-pause when audio routes away from headphones/bluetooth to the speaker —
+      // this is the exact case the audio-pause-or-mute-check lint rule demands.
+      // Doc: https://developer.huawei.com/consumer/en/doc/harmonyos-guides/ide-audio-pause-or-mute-check
+      this.routingManager = audio.getAudioManager().getRoutingManager();
+      this.routingManager.on('deviceChange', audio.DeviceFlag.OUTPUT_DEVICES_FLAG,
+        (action: audio.DeviceChangeAction) => {
+          if (action.type === audio.DeviceChangeType.DISCONNECT) {
+            Logger.i(MODULE, 'Output device disconnected — auto-pausing playback');
+            player.pause();
+            this.wasPausedByInterrupt = true;
+            this.currentState = PlaybackState.PAUSED;
+            this.notifyStateChange(PlaybackState.PAUSED);
+          }
+        });
       this.currentState = PlaybackState.IDLE;
       this.setupCallbacks();
       Logger.i(MODULE, 'AVPlayer recreated');
